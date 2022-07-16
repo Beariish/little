@@ -333,6 +333,7 @@ lt_Tokenizer lt_tokenize(lt_VM* vm, const char* source, const char* mod_name)
 			{
 			case ' ': case '\t': { col++; current++; } found = 1; break;
 			case '\n': { col = 0; line++; current++; } found = 1; break;
+			case '\r': { current++; } found = 1; break;
 			case ';': { while (*current++ != '\n'); col = 1; line++; found = 1; } break;
 			case '.': PUSH_TOKEN(LT_TOKEN_PERIOD)		   break;
 			case ',': PUSH_TOKEN(LT_TOKEN_COMMA)		   break;
