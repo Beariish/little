@@ -45,7 +45,7 @@ typedef struct {
 	int16_t arg;
 } lt_Op;
 
-uint64_t inline MurmurOAAT64(const char* key)
+uint64_t static MurmurOAAT64(const char* key)
 {
 	uint64_t h = 525201411107845655ull;
 	for (; *key; ++key) {
@@ -62,7 +62,7 @@ typedef union {
 } _lt_conversion_union;
 
 
-inline lt_Buffer lt_buffer_new(uint32_t element_size)
+lt_Buffer lt_buffer_new(uint32_t element_size)
 {
 	lt_Buffer buf;
 	buf.element_size = element_size;
@@ -73,7 +73,7 @@ inline lt_Buffer lt_buffer_new(uint32_t element_size)
 	return buf;
 }
 
-inline void lt_buffer_destroy(lt_VM* vm, lt_Buffer* buf)
+void lt_buffer_destroy(lt_VM* vm, lt_Buffer* buf)
 {
 	if (buf->data != 0) vm->free(buf->data);
 	buf->data = 0;
@@ -81,7 +81,7 @@ inline void lt_buffer_destroy(lt_VM* vm, lt_Buffer* buf)
 	buf->capacity = 0;
 }
 
-inline uint8_t lt_buffer_push(lt_VM* vm, lt_Buffer* buf, void* element)
+static uint8_t lt_buffer_push(lt_VM* vm, lt_Buffer* buf, void* element)
 {
 	uint8_t has_allocated = 0;
 	if (buf->length + 1 > buf->capacity)
@@ -106,23 +106,23 @@ inline uint8_t lt_buffer_push(lt_VM* vm, lt_Buffer* buf, void* element)
 	return has_allocated;
 }
 
-inline void* lt_buffer_at(lt_Buffer* buf, uint32_t idx)
+static void* lt_buffer_at(lt_Buffer* buf, uint32_t idx)
 {
 	return (uint8_t*)buf->data + buf->element_size * idx;
 }
 
-inline void* lt_buffer_last(lt_Buffer* buf)
+static void* lt_buffer_last(lt_Buffer* buf)
 {
 	return lt_buffer_at(buf, buf->length - 1);
 }
 
-inline void lt_buffer_cycle(lt_Buffer* buf, uint32_t idx)
+static void lt_buffer_cycle(lt_Buffer* buf, uint32_t idx)
 {
 	memcpy(lt_buffer_at(buf, idx), lt_buffer_last(buf), buf->element_size);
 	buf->length--;
 }
 
-inline void lt_buffer_pop(lt_Buffer* buf)
+static void lt_buffer_pop(lt_Buffer* buf)
 {
 	buf->length--;
 }
@@ -141,21 +141,21 @@ double lt_get_number(lt_Value v)
 	return (double)u.flt;
 }
 
-inline void _lt_tokenize_error(lt_VM* vm, const char* module, uint16_t line, uint16_t col, const char* message)
+static void _lt_tokenize_error(lt_VM* vm, const char* module, uint16_t line, uint16_t col, const char* message)
 {
 	char sprint_buf[128];
 	sprintf_s(sprint_buf, 128, "%s|%d:%d: %s", module, line, col, message);
 	lt_error(vm, sprint_buf);
 }
 
-inline void _lt_parse_error(lt_VM* vm, const char* module, lt_Token* t, const char* message)
+static void _lt_parse_error(lt_VM* vm, const char* module, lt_Token* t, const char* message)
 {
 	char sprint_buf[128];
 	sprintf_s(sprint_buf, 128, "%s|%d:%d: %s", module, t->line, t->col, message);
 	lt_error(vm, sprint_buf);
 }
 
-inline lt_DebugInfo* _lt_get_debuginfo(lt_Object* obj)
+static lt_DebugInfo* _lt_get_debuginfo(lt_Object* obj)
 {
 	switch (obj->type)
 	{
@@ -167,7 +167,7 @@ inline lt_DebugInfo* _lt_get_debuginfo(lt_Object* obj)
 	return 0;
 }
 
-inline lt_DebugLoc _lt_get_location(lt_DebugInfo* info, uint32_t pc)
+static lt_DebugLoc _lt_get_location(lt_DebugInfo* info, uint32_t pc)
 {
 	if (info)
 	{
@@ -258,14 +258,14 @@ const char* lt_get_string(lt_VM* vm, lt_Value value)
 	return ((lt_StringDedupEntry*)lt_buffer_at(vm->strings + bucket, index))->string;
 }
 
-inline void _lt_reference_string(lt_VM* vm, lt_Value value)
+static void _lt_reference_string(lt_VM* vm, lt_Value value)
 {
 	uint16_t bucket = (uint16_t)((value & 0xFFFFFF000000) >> 24);
 	uint32_t index = value & 0xFFFFFF;
 	((lt_StringDedupEntry*)lt_buffer_at(vm->strings + bucket, index))->refcount++;
 }
 
-inline uint8_t faststrcmp(const char* a, uint64_t a_len, const char* b, uint64_t b_len)
+static uint8_t faststrcmp(const char* a, uint64_t a_len, const char* b, uint64_t b_len)
 {
 	if (a_len != b_len) return 0;
 	for (int i = 0; i < a_len; ++i)
@@ -1587,11 +1587,13 @@ inst_loop:
 		PUSH(lt_table_get(vm, vm->global, key));
 	} NEXT;
 
+#define PASTE(x) x
+
 #define IMPL_ARITH(op){                                                       \
 		lt_Value right = POP();		                                          \
 		lt_Value left = POP();		                                          \
 		if (!LT_IS_NUMBER(right) || !LT_IS_NUMBER(left)) {}		              \
-		PUSH(lt_make_number(lt_get_number(left) ##op lt_get_number(right)));  \
+		PUSH(lt_make_number(lt_get_number(left) PASTE(op) lt_get_number(right)));  \
 	} NEXT;
 
 	case LT_OP_ADD: IMPL_ARITH(+)
@@ -1724,16 +1726,16 @@ uint16_t _lt_push_constant(lt_VM* vm, lt_Buffer* constants, lt_Value constant)
 	return constants->length - 1;
 }
 
-inline void _lt_compile_body(lt_VM* vm, lt_Parser* p, const char* name, lt_Buffer* debug, lt_Buffer* ast_body, lt_Scope* scope, lt_Buffer* code_body, lt_Buffer* constants);
-inline void _lt_compile_node(lt_VM* vm, lt_Parser* p, const char* name, lt_Buffer* debug, lt_AstNode* node, lt_Scope* scope, lt_Buffer* code_body, lt_Buffer* constants);
+static void _lt_compile_body(lt_VM* vm, lt_Parser* p, const char* name, lt_Buffer* debug, lt_Buffer* ast_body, lt_Scope* scope, lt_Buffer* code_body, lt_Buffer* constants);
+static void _lt_compile_node(lt_VM* vm, lt_Parser* p, const char* name, lt_Buffer* debug, lt_AstNode* node, lt_Scope* scope, lt_Buffer* code_body, lt_Buffer* constants);
 
-inline void _lt_compile_index(lt_VM* vm, lt_Parser* p, const char* name, lt_Buffer* debug, lt_AstNode* node, lt_Scope* scope, lt_Buffer* code_body, lt_Buffer* constants)
+static void _lt_compile_index(lt_VM* vm, lt_Parser* p, const char* name, lt_Buffer* debug, lt_AstNode* node, lt_Scope* scope, lt_Buffer* code_body, lt_Buffer* constants)
 {
 	_lt_compile_node(vm, p, name, debug, node->index.source, scope, code_body, constants);
 	_lt_compile_node(vm, p, name, debug, node->index.idx, scope, code_body, constants);
 }
 
-inline void _lt_compile_node(lt_VM* vm, lt_Parser* p, const char* name, lt_Buffer* debug, lt_AstNode* node, lt_Scope* scope, lt_Buffer* code_body, lt_Buffer* constants)
+static void _lt_compile_node(lt_VM* vm, lt_Parser* p, const char* name, lt_Buffer* debug, lt_AstNode* node, lt_Scope* scope, lt_Buffer* code_body, lt_Buffer* constants)
 {
 	switch (node->type)
 	{
@@ -2042,7 +2044,7 @@ inline void _lt_compile_node(lt_VM* vm, lt_Parser* p, const char* name, lt_Buffe
 	}
 }
 
-inline void _lt_compile_body(lt_VM* vm, lt_Parser* p, const char* name, lt_Buffer* debug, lt_Buffer* ast_body, lt_Scope* scope, lt_Buffer* code_body, lt_Buffer* constants)
+static void _lt_compile_body(lt_VM* vm, lt_Parser* p, const char* name, lt_Buffer* debug, lt_Buffer* ast_body, lt_Scope* scope, lt_Buffer* code_body, lt_Buffer* constants)
 {
 	for (uint32_t i = 0; i < ast_body->length; i++)
 	{

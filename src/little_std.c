@@ -16,7 +16,7 @@ void ltstd_open_all(lt_VM* vm)
     ltstd_open_gc(vm);
 }
 
-inline char* ltstd_tostring(lt_VM* vm, lt_Value val)
+char* ltstd_tostring(lt_VM* vm, lt_Value val)
 {
     char scratch[256];
     uint8_t len = 0;
@@ -48,7 +48,7 @@ inline char* ltstd_tostring(lt_VM* vm, lt_Value val)
     return str;
 }
 
-inline uint8_t _lt_print(lt_VM* vm, uint8_t argc)
+static uint8_t _lt_print(lt_VM* vm, uint8_t argc)
 {
     for (int16_t i = argc - 1; i >= 0; --i)
     {
@@ -65,7 +65,7 @@ inline uint8_t _lt_print(lt_VM* vm, uint8_t argc)
     return 0;
 }
 
-inline uint8_t _lt_clock(lt_VM* vm, uint8_t argc)
+static uint8_t _lt_clock(lt_VM* vm, uint8_t argc)
 {
     if (argc != 0) lt_runtime_error(vm, "Expected no arguments to io.clock!");
 
@@ -77,7 +77,7 @@ inline uint8_t _lt_clock(lt_VM* vm, uint8_t argc)
 }
 
 #define LT_SIMPLE_MATH_FN(name) \
-    inline uint8_t _lt_##name(lt_VM* vm, uint8_t argc) \
+    static uint8_t _lt_##name(lt_VM* vm, uint8_t argc) \
 { \
     if (argc != 1) lt_runtime_error(vm, "Expected one argument to math." #name "!");                         \
     lt_Value arg = lt_pop(vm);                                                                         \
@@ -110,7 +110,7 @@ LT_SIMPLE_MATH_FN(sqrt);
 LT_SIMPLE_MATH_FN(fabs);
 
 #define LT_BINARY_MATH_FN(name) \
-    inline uint8_t _lt_##name(lt_VM* vm, uint8_t argc) \
+    static uint8_t _lt_##name(lt_VM* vm, uint8_t argc) \
 { \
     if (argc != 2) lt_runtime_error(vm, "Expected two arguments to math." #name "!");                         \
     lt_Value arg1 = lt_pop(vm);                                                                         \
@@ -121,12 +121,12 @@ LT_SIMPLE_MATH_FN(fabs);
     return 1;                                                                                          \
 }
 
-LT_BINARY_MATH_FN(min);
-LT_BINARY_MATH_FN(max);
+LT_BINARY_MATH_FN(fmin);
+LT_BINARY_MATH_FN(fmax);
 LT_BINARY_MATH_FN(pow);
 LT_BINARY_MATH_FN(fmod);
 
-inline uint8_t _lt_array_next(lt_VM* vm, uint8_t argc)
+static uint8_t _lt_array_next(lt_VM* vm, uint8_t argc)
 {
     lt_Value current = lt_getupval(vm, 1);
     lt_Value arr = lt_getupval(vm, 0);
@@ -140,7 +140,7 @@ inline uint8_t _lt_array_next(lt_VM* vm, uint8_t argc)
     return 1;
 }
 
-inline uint8_t _lt_array_each(lt_VM* vm, uint8_t argc)
+static uint8_t _lt_array_each(lt_VM* vm, uint8_t argc)
 {
     if (argc != 1) lt_runtime_error(vm, "Expected one argument to array.each!");
 
@@ -158,7 +158,7 @@ inline uint8_t _lt_array_each(lt_VM* vm, uint8_t argc)
     return 1;
 }
 
-inline uint8_t _lt_range_iter(lt_VM* vm, uint8_t argc)
+static uint8_t _lt_range_iter(lt_VM* vm, uint8_t argc)
 {
     lt_Value start = lt_getupval(vm, 2);
     lt_Value end = lt_getupval(vm, 1);
@@ -172,7 +172,7 @@ inline uint8_t _lt_range_iter(lt_VM* vm, uint8_t argc)
     return 1;
 }
 
-inline uint8_t _lt_range(lt_VM* vm, uint8_t argc)
+static uint8_t _lt_range(lt_VM* vm, uint8_t argc)
 {
     lt_Value start = LT_VALUE_NUMBER(0);
     lt_Value end = LT_VALUE_NUMBER(0);
@@ -207,7 +207,7 @@ inline uint8_t _lt_range(lt_VM* vm, uint8_t argc)
     return 1;
 }
 
-inline uint8_t _lt_array_len(lt_VM* vm, uint8_t argc)
+static uint8_t _lt_array_len(lt_VM* vm, uint8_t argc)
 {
     if (argc != 1) lt_runtime_error(vm, "Expected one argument to array.len!");
     lt_Value arr = lt_pop(vm);
@@ -217,7 +217,7 @@ inline uint8_t _lt_array_len(lt_VM* vm, uint8_t argc)
     return 1;
 }
 
-inline uint8_t _lt_array_pop(lt_VM* vm, uint8_t argc)
+static uint8_t _lt_array_pop(lt_VM* vm, uint8_t argc)
 {
     if (argc != 1) lt_runtime_error(vm, "Expected one argument to array.pop!");
     lt_Value arr = lt_pop(vm);
@@ -227,17 +227,17 @@ inline uint8_t _lt_array_pop(lt_VM* vm, uint8_t argc)
     return 1;
 }
 
-inline uint8_t _lt_array_last(lt_VM* vm, uint8_t argc)
+static uint8_t _lt_array_last(lt_VM* vm, uint8_t argc)
 {
     if (argc != 1) lt_runtime_error(vm, "Expected one argument to array.last!");
     lt_Value arr = lt_pop(vm);
     if (!LT_IS_ARRAY(arr)) lt_runtime_error(vm, "Expected argument to array.last to be array!");
 
-    lt_push(vm, lt_array_at(vm, arr, lt_array_length(arr) - 1));
+    lt_push(vm, lt_array_at(arr, lt_array_length(arr) - 1));
     return 1;
 }
 
-inline uint8_t _lt_array_push(lt_VM* vm, uint8_t argc)
+static uint8_t _lt_array_push(lt_VM* vm, uint8_t argc)
 {
     if (argc != 2) lt_runtime_error(vm, "Expected two arguments to array.push!");
     lt_Value arr = lt_pop(vm);
@@ -248,7 +248,7 @@ inline uint8_t _lt_array_push(lt_VM* vm, uint8_t argc)
     return 0;
 }
 
-inline uint8_t _lt_array_remove(lt_VM* vm, uint8_t argc)
+static uint8_t _lt_array_remove(lt_VM* vm, uint8_t argc)
 {
     if (argc != 2) lt_runtime_error(vm, "Expected two arguments to array.remove!");
     lt_Value arr = lt_pop(vm);
@@ -260,7 +260,7 @@ inline uint8_t _lt_array_remove(lt_VM* vm, uint8_t argc)
     return 0;
 }
 
-inline uint8_t _lt_gc_collect(lt_VM* vm, uint8_t argc)
+static uint8_t _lt_gc_collect(lt_VM* vm, uint8_t argc)
 {
     if (argc != 0) lt_runtime_error(vm, "Expected no arguments to gc.collect!");
     uint32_t num_collected = lt_collect(vm);
@@ -268,7 +268,7 @@ inline uint8_t _lt_gc_collect(lt_VM* vm, uint8_t argc)
     return 1;
 }
 
-inline uint8_t _lt_gc_addroot(lt_VM* vm, uint8_t argc)
+static uint8_t _lt_gc_addroot(lt_VM* vm, uint8_t argc)
 {
     if (argc != 1) lt_runtime_error(vm, "Expected one argument to gc.addroot!");
     lt_Value val = lt_pop(vm);
@@ -278,7 +278,7 @@ inline uint8_t _lt_gc_addroot(lt_VM* vm, uint8_t argc)
     return 0;
 }
 
-inline uint8_t _lt_gc_removeroot(lt_VM* vm, uint8_t argc)
+static uint8_t _lt_gc_removeroot(lt_VM* vm, uint8_t argc)
 {
     if (argc != 1) lt_runtime_error(vm, "Expected one argument to gc.removeroot!");
     lt_Value val = lt_pop(vm);
@@ -288,7 +288,7 @@ inline uint8_t _lt_gc_removeroot(lt_VM* vm, uint8_t argc)
     return 0;
 }
 
-inline uint8_t _lt_string_from(lt_VM* vm, uint8_t argc)
+static uint8_t _lt_string_from(lt_VM* vm, uint8_t argc)
 {
     if (argc != 1) lt_runtime_error(vm, "Expected one argument to string.from!");
     lt_Value val = lt_pop(vm);
@@ -299,7 +299,7 @@ inline uint8_t _lt_string_from(lt_VM* vm, uint8_t argc)
     return 1;
 }
 
-inline uint8_t _lt_string_concat(lt_VM* vm, uint8_t argc)
+static uint8_t _lt_string_concat(lt_VM* vm, uint8_t argc)
 {
     if (argc < 2) lt_runtime_error(vm, "Expected at least two arguments to string.concat!");
 
@@ -332,7 +332,7 @@ inline uint8_t _lt_string_concat(lt_VM* vm, uint8_t argc)
     return 1;
 }
 
-inline uint8_t _lt_string_len(lt_VM* vm, uint8_t argc)
+static uint8_t _lt_string_len(lt_VM* vm, uint8_t argc)
 {
     if (argc != 1) lt_runtime_error(vm, "Expected one argument to string.len!");
     lt_Value val = lt_pop(vm);
@@ -341,7 +341,7 @@ inline uint8_t _lt_string_len(lt_VM* vm, uint8_t argc)
     return 1;
 }
 
-inline uint8_t _lt_string_sub(lt_VM* vm, uint8_t argc)
+static uint8_t _lt_string_sub(lt_VM* vm, uint8_t argc)
 {
     if (argc < 2) lt_runtime_error(vm, "Expected at least two arguments to string.sub!");
     
@@ -369,7 +369,7 @@ inline uint8_t _lt_string_sub(lt_VM* vm, uint8_t argc)
     return 1;
 }
 
-inline uint8_t _lt_string_format(lt_VM* vm, uint8_t argc)
+static uint8_t _lt_string_format(lt_VM* vm, uint8_t argc)
 {
     if (argc < 1) lt_runtime_error(vm, "Expected at least a template string to string.format!");
     lt_Value val = vm->stack[vm->top - argc];
@@ -431,7 +431,7 @@ inline uint8_t _lt_string_format(lt_VM* vm, uint8_t argc)
     return 1;
 }
 
-inline uint8_t _lt_string_typeof(lt_VM* vm, uint8_t argc)
+static uint8_t _lt_string_typeof(lt_VM* vm, uint8_t argc)
 {
     if (argc != 1) lt_runtime_error(vm, "Expected one argument to string.typeof!");
     lt_Value val = lt_pop(vm);
@@ -482,8 +482,8 @@ void ltstd_open_math(lt_VM* vm)
     lt_table_set(vm, t, lt_make_string(vm, "sqrt"),  lt_make_native(vm, _lt_sqrt));
     lt_table_set(vm, t, lt_make_string(vm, "abs"),   lt_make_native(vm, _lt_fabs));
 
-    lt_table_set(vm, t, lt_make_string(vm, "min"), lt_make_native(vm, _lt_min));
-    lt_table_set(vm, t, lt_make_string(vm, "max"), lt_make_native(vm, _lt_max));
+    lt_table_set(vm, t, lt_make_string(vm, "min"), lt_make_native(vm, _lt_fmin));
+    lt_table_set(vm, t, lt_make_string(vm, "max"), lt_make_native(vm, _lt_fmax));
     lt_table_set(vm, t, lt_make_string(vm, "pow"), lt_make_native(vm, _lt_pow));
     lt_table_set(vm, t, lt_make_string(vm, "mod"), lt_make_native(vm, _lt_fmod));
 

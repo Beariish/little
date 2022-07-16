@@ -288,6 +288,8 @@ typedef enum {
 	LT_OBJECT_PTR,
 } lt_ObjectType;
 
+struct lt_VM;
+
 typedef uint8_t(*lt_NativeFn)(struct lt_VM* vm, uint8_t argc);
 
 typedef struct {
