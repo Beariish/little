@@ -55,6 +55,11 @@ int main(char** argv, int argc)
 * **[C API reference](doc/api.md)**
 * **[C API examples](doc/example.md)**
 ---
+## Known issues
+* Recursion is broken, sorry
+    * just write better code
+
+---
 ## Contribution
 Feel free to open an issue or pull request if you feel you have something meaninfgul to add, but keep in mind the language is minimalist by design, so any merging will be very carefully picked
 
