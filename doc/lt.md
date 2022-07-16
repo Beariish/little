@@ -19,7 +19,7 @@ These are grouped into `Value` and `Object` types, which are passed by value and
 
 ## Language statements
 ### var
-```
+```js
 var a
 var b = 10
 var c = (a or 10) + b
@@ -28,7 +28,7 @@ Variables are declared with the `var` keyword. Only a single name is permitted p
 
 ---
 ### if
-```
+```js
 if a is 100 { ... }
 elseif a is 150 { ... }
 elseif b is a { ... }
@@ -38,7 +38,7 @@ Branching is done with the `if` statement, followed by an expression to evaluate
 
 ---
 ### for
-```
+```js
 var a = [ 100, 200, 300 ]
 for item in array.each(a) { ... }
 ```
@@ -46,7 +46,7 @@ for item in array.each(a) { ... }
 
 ---
 ### while
-```
+```js
 var a = 0
 while a < 10 { a = a + 1 }
 ```
@@ -54,21 +54,21 @@ while a < 10 { a = a + 1 }
 
 ---
 ### break
-```
+```js
 while true { break }
 ```
 `break` exits a loop early.
 
 ---
 ### return
-```
+```js
 return "any expression!"
 ```
 `return` exits the current execution frame, and returns a single value to the caller.
 
 ---
 ### assignment
-```
+```js
 var a = 10
 a = 20
 ```

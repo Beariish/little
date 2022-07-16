@@ -2,7 +2,7 @@
 little is a _small_, _fast_, _easily embeddable_ language implemented in C.
 
 ---
-```
+```js
 var speak = fn(animal) {
     if animal is "cat" { return "meow" }
     elseif animal is "dog" { return "woof" }
