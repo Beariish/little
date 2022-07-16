@@ -11,21 +11,27 @@ void error(lt_VM* vm, const char* msg)
 
 int main(int argc, char** argv)
 {
+    // Load program
+    if (argc != 2)
+    {
+        printf("Usage: little FILENAME\n");
+        return 0;
+    }
+    FILE *fp = fopen(argv[1], "rb");
+    if (!fp)
+    {
+        printf("ERROR: Failed to open '%s'\n", argv[1]);
+        return 0;
+    }
+    static char text[1 << 20];
+    fread(text, 1, sizeof(text), fp);
+    fclose(fp);
+
+    // Init VM and run program
     lt_VM* vm = lt_open(malloc, free, error);
     ltstd_open_all(vm);
 
-    uint32_t nreturn = lt_dostring(vm, ""
-        "var speak = fn(animal) {                                                                      \n"
-        "    if animal is \"cat\" { return \"meow\" }                                                  \n"
-        "    elseif animal is \"dog\" { return \"woof\" }                                              \n"
-        "    elseif animal is \"mouse\" { return \"squeak\" }                                          \n"
-        "    return \"???\"                                                                            \n"
-        "}                                                                                             \n"
-        "                                                                                              \n"
-        "var animals = [\"cat\", \"dog\", \"mouse\", \"monkey\"]                                       \n"
-        "    for animal in array.each(animals) {                                                       \n"
-        "            io.print(string.format(\"%s says %s!\", animal, speak(animal)))                   \n"
-        "}", "module");
+    uint32_t nreturn = lt_dostring(vm, text, "module");
 
     while (nreturn-- > 0)
     {
