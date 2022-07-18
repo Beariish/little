@@ -1,6 +1,7 @@
 #pragma once
 
 #include <stdint.h>
+#include <stddef.h> // size_t
 
 typedef uint64_t lt_Value;
 

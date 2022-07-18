@@ -6,6 +6,11 @@
 #include <stdio.h>
 #include <setjmp.h>
 
+#if defined(__APPLE__)
+  #define sprintf_s snprintf
+  #define strncpy_s(dst, dstsz, src, count) strncpy(dst, src, count)
+#endif
+
 static lt_Value LT_NULL = LT_VALUE_NULL;
 
 typedef struct {
