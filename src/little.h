@@ -361,7 +361,7 @@ typedef void (*lt_ErrorFn)(struct lt_VM* vm, const char*);
 #define LT_DEDUP_TABLE_SIZE 64
 #endif
 
-typedef struct {
+typedef struct lt_VM {
 	lt_Buffer heap;
 	lt_Buffer keepalive;
 
