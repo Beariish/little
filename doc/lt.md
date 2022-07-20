@@ -6,7 +6,7 @@ Little supports a set of basic types:
 * `boolean` - either true or false
 * `string` - a reference to an immutable string
 * `function` - a little-defined function
-* `closure` - any function that captures surroudning values
+* `closure` - any function that captures surrounding values
 * `array` - 0-indexed array of values
 * `table` - a table of key-value pairs
 * `native` - reference to a natively defined C function
@@ -42,7 +42,7 @@ Branching is done with the `if` statement, followed by an expression to evaluate
 var a = [ 100, 200, 300 ]
 for item in array.each(a) { ... }
 ```
-`for` loops come in only one flavour in little, requireing a single identifier to be the loop variable, and an expression that evaluates into an iterator function. It will be repeatedly called - and it's result stored in the loop variable - until it evaluates to null.
+`for` loops come in only one flavour in little, requiring a single identifier to be the loop variable, and an expression that evaluates into an iterator function. It will be repeatedly called - and it's result stored in the loop variable - until it evaluates to null.
 
 ---
 ### while
@@ -94,12 +94,12 @@ Expressions consist of all literals and operators.
     * Can be trivially passed as parameters as well
     * Parameter list is mandatory, even if empty
 ### Operators
-The mathematical operators `+`, `-`, `*`, and `/` only operator on `number` values
+The mathematical operators `+`, `-`, `*`, and `/` only work on `number` values
 The comparison operators `<`, `<=`, `>`, `>=` also only work with `number`s
 The comparison operators `is` and `isnt` work on all types
 The logical operators `or`, `and` and `not` compare values based on their `truthiness`, and return their last operand
 The index operator `[expression]` works on any `table` and `array` values
-The dot operator `.` is syntax sugar for indexsing `table`s - `my_table.my_index = 10`
+The dot operator `.` is syntax sugar for indexing `table`s - `my_table.my_index = 10`
 
 ### Truthiness
 Any `null` or `false` values are considered `falsy`, anything else is logically `true`
