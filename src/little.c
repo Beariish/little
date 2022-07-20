@@ -393,7 +393,7 @@ lt_Tokenizer lt_tokenize(lt_VM* vm, const char* source, const char* mod_name)
 					tok.idx = t.literal_buffer.length - 1;
 					lt_buffer_push(vm, &t.token_buffer, &tok);
 				}
-				else if (isalnum(*current) && !isalpha(*current))
+				else if (isdigit(*current))
 				{
 					const char* start = current;
 					uint8_t has_decimal = 0;
