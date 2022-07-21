@@ -76,6 +76,48 @@ static uint8_t _lt_clock(lt_VM* vm, uint8_t argc)
     return 1;
 }
 
+static lt_Value req_table_string;
+
+static uint8_t _lt_require(lt_VM* vm, uint8_t argc)
+{
+    if (argc != 1) lt_runtime_error(vm, "Expected path argument to io.require!");
+    lt_Value reqtable = lt_table_get(vm, vm->global, req_table_string);
+    if (LT_IS_NULL(reqtable))
+    {
+        reqtable = lt_make_table(vm);
+        lt_table_set(vm, vm->global, req_table_string, reqtable);
+    }
+
+    lt_Value path = lt_pop(vm);
+    lt_Value result = lt_table_get(vm, reqtable, path);
+    if (!LT_IS_NULL(result))
+    {
+        lt_push(vm, result);
+        return 1;
+    }
+
+    FILE* fp = fopen(lt_get_string(vm, path), "rb");
+    if (!fp) lt_runtime_error(vm, "Failed to open file for require!");
+    
+    static char text[1 << 20];
+    fread(text, 1, sizeof(text), fp);
+    fclose(fp);
+
+    uint32_t n_results = lt_dostring(vm, text, lt_get_string(vm, path));
+    if (n_results == 1)
+    {
+        result = lt_pop(vm);
+        lt_table_set(vm, reqtable, path, result);
+        lt_push(vm, result);
+        return 1;
+    }
+    else
+    {
+        lt_table_set(vm, reqtable, path, LT_VALUE_TRUE);
+        return 0;
+    }
+}
+
 #define LT_SIMPLE_MATH_FN(name) \
     static uint8_t _lt_##name(lt_VM* vm, uint8_t argc) \
 { \
@@ -450,9 +492,12 @@ static uint8_t _lt_string_typeof(lt_VM* vm, uint8_t argc)
 
 void ltstd_open_io(lt_VM* vm)
 {
+    req_table_string = lt_make_string(vm, "__require");
+
 	lt_Value t = lt_make_table(vm);
     lt_table_set(vm, t, lt_make_string(vm, "print"), lt_make_native(vm, _lt_print));
     lt_table_set(vm, t, lt_make_string(vm, "clock"), lt_make_native(vm, _lt_clock));
+    lt_table_set(vm, t, lt_make_string(vm, "require"), lt_make_native(vm, _lt_require));
 
     lt_table_set(vm, vm->global, lt_make_string(vm, "io"), t);
 }

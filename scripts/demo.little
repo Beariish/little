@@ -10,3 +10,6 @@ var animals = [ "cat", "dog", "mouse", "monkey" ]
 for animal in array.each(animals) {
     io.print(string.format("%s says %s!", animal, speak(animal)))
 }
+
+var module = io.require("scripts/module.little")
+module("Called from another file!")

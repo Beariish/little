@@ -1,0 +1,5 @@
+io.print("This should only appear once!")
+
+return fn(x) {
+	io.print("Hello I am ", x)
+}
