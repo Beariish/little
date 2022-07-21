@@ -60,6 +60,13 @@ int main(char** argv, int argc)
     * just write better code
 
 ---
+## Potential improvements
+* Drop the AST for single pass compiler
+    *  but only if it actually makes the impl smaller
+* precomputed goto/jumptable vm instruction dispatch
+* copy fewer strings probably
+
+---
 ## Contribution
 Feel free to open an issue or pull request if you feel you have something meaninfgul to add, but keep in mind the language is minimalist by design, so any merging will be very carefully picked
 
