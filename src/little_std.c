@@ -7,6 +7,10 @@
 #include <math.h>
 #include <time.h>
 
+#if defined(__APPLE__)
+  #define sprintf_s snprintf
+#endif
+
 void ltstd_open_all(lt_VM* vm)
 {
 	ltstd_open_io(vm);
