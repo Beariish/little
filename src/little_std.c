@@ -52,7 +52,7 @@ static uint8_t _lt_print(lt_VM* vm, uint8_t argc)
 {
     for (int16_t i = argc - 1; i >= 0; --i)
     {
-        char* str = ltstd_tostring(vm, vm->stack[vm->top - 1 - i]);
+        char* str = ltstd_tostring(vm, *(vm->top - 1 - i));
         printf("%s", str);
         vm->free(str);
 
@@ -349,7 +349,7 @@ static uint8_t _lt_string_concat(lt_VM* vm, uint8_t argc)
 
     for (int32_t i = argc - 1; i >= 0; --i)
     {
-        lt_Value val = vm->stack[vm->top - 1 - i];
+        lt_Value val = *(vm->top - 1 - i);
         if (!LT_IS_STRING(val)) lt_runtime_error(vm, "Non-string argument to string.concat!");
         uint32_t oldlen = len;
         const char* str = lt_get_string(vm, val);
@@ -414,7 +414,7 @@ static uint8_t _lt_string_sub(lt_VM* vm, uint8_t argc)
 static uint8_t _lt_string_format(lt_VM* vm, uint8_t argc)
 {
     if (argc < 1) lt_runtime_error(vm, "Expected at least a template string to string.format!");
-    lt_Value val = vm->stack[vm->top - argc];
+    lt_Value val = *(vm->top - argc);
     if (!LT_IS_STRING(val)) lt_runtime_error(vm, "Non-string argument to string.format!");
 
     char output[1024];
@@ -441,19 +441,19 @@ static uint8_t _lt_string_format(lt_VM* vm, uint8_t argc)
                 {
                 case 'd': case 'i': {
                     fmtbuf[fmtloc++] = *format++; fmtbuf[fmtloc] = 0;
-                    o_idx += sprintf_s(output + o_idx, 1024 - o_idx, fmtbuf, (int32_t)LT_GET_NUMBER(vm->stack[vm->top - argc + current_arg++]));
+                    o_idx += sprintf_s(output + o_idx, 1024 - o_idx, fmtbuf, (int32_t)LT_GET_NUMBER(*(vm->top - argc + current_arg++)));
                 } break;
                 case 'o': case 'u': case 'x': case 'X': {
                     fmtbuf[fmtloc++] = *format++; fmtbuf[fmtloc] = 0;
-                    o_idx += sprintf_s(output + o_idx, 1024 - o_idx, fmtbuf, (uint32_t)LT_GET_NUMBER(vm->stack[vm->top - argc + current_arg++]));
+                    o_idx += sprintf_s(output + o_idx, 1024 - o_idx, fmtbuf, (uint32_t)LT_GET_NUMBER(*(vm->top - argc + current_arg++)));
                 } break;
                 case 'e': case 'E': case 'f': case 'g': case 'G': {
                     fmtbuf[fmtloc++] = *format++; fmtbuf[fmtloc] = 0;
-                    o_idx += sprintf_s(output + o_idx, 1024 - o_idx, fmtbuf, LT_GET_NUMBER(vm->stack[vm->top - argc + current_arg++]));
+                    o_idx += sprintf_s(output + o_idx, 1024 - o_idx, fmtbuf, LT_GET_NUMBER(*(vm->top - argc + current_arg++)));
                 } break;
                 case 's': {
                     fmtbuf[fmtloc++] = *format++; fmtbuf[fmtloc] = 0;
-                    o_idx += sprintf_s(output + o_idx, 1024 - o_idx, fmtbuf, lt_get_string(vm, vm->stack[vm->top - argc + current_arg++]));
+                    o_idx += sprintf_s(output + o_idx, 1024 - o_idx, fmtbuf, lt_get_string(vm, *(vm->top - argc + current_arg++)));
                 } break;
                 default:
                     fmtbuf[fmtloc++] = *format++;

@@ -19,7 +19,7 @@ typedef struct {
 typedef enum {
 	LT_OP_NOP,
 
-	LT_OP_PUSH, LT_OP_POP, LT_OP_DUP,
+	LT_OP_PUSH, LT_OP_DUP,
 
 	LT_OP_PUSHS, LT_OP_PUSHC, LT_OP_PUSHN, LT_OP_PUSHT, LT_OP_PUSHF,
 
@@ -29,7 +29,6 @@ typedef enum {
 
 	LT_OP_LOAD, LT_OP_STORE,
 	LT_OP_LOADUP, LT_OP_STOREUP,
-	LT_OP_LOADB,
 
 	LT_OP_CLOSE, LT_OP_CALL,
 
@@ -39,11 +38,6 @@ typedef enum {
 
 	LT_OP_RET,
 } lt_OpCode;
-
-typedef struct {
-	uint16_t op;
-	int16_t arg;
-} lt_Op;
 
 uint64_t static MurmurOAAT64(const char* key)
 {
@@ -60,7 +54,6 @@ typedef union {
 	double flt;
 	uint64_t bits;
 } _lt_conversion_union;
-
 
 lt_Buffer lt_buffer_new(uint32_t element_size)
 {
@@ -141,6 +134,8 @@ double lt_get_number(lt_Value v)
 	return (double)u.flt;
 }
 
+#define VALTONUM(x) ((union { uint64_t u; double n; }) { x }.n)
+
 static void _lt_tokenize_error(lt_VM* vm, const char* module, uint16_t line, uint16_t col, const char* message)
 {
 	char sprint_buf[128];
@@ -169,11 +164,7 @@ static lt_DebugInfo* _lt_get_debuginfo(lt_Object* obj)
 
 static lt_DebugLoc _lt_get_location(lt_DebugInfo* info, uint32_t pc)
 {
-	if (info)
-	{
-		return *(lt_DebugLoc*)lt_buffer_at(&info->locations, pc);
-	}
-
+	if (info) return *(lt_DebugLoc*)lt_buffer_at(&info->locations, pc);
 	return (lt_DebugLoc){ 0, 0 };
 }
 
@@ -183,7 +174,7 @@ void lt_runtime_error(lt_VM* vm, const char* message)
 
 	lt_Frame* topmost = &vm->callstack[vm->depth - 1];
 	lt_DebugInfo* info = _lt_get_debuginfo(topmost->callee);
-	lt_DebugLoc loc = _lt_get_location(info, topmost->pc);
+	lt_DebugLoc loc = _lt_get_location(info, topmost->ip - (lt_Op*)topmost->code->data);
 
 	const char* name = "<unknown>";
 	if (info) name = info->module_name;
@@ -193,7 +184,7 @@ void lt_runtime_error(lt_VM* vm, const char* message)
 	{
 		lt_Frame* frame = &vm->callstack[i];
 		lt_DebugInfo* info = _lt_get_debuginfo(frame->callee);
-		lt_DebugLoc loc = _lt_get_location(info, 0);
+		lt_DebugLoc loc = _lt_get_location(info, frame->ip - (lt_Op*)frame->code->data);
 
 		const char* name = "<unknown>";
 		if (info) name = info->module_name;
@@ -851,17 +842,17 @@ lt_Token* _lt_parse_expression(lt_VM* vm, lt_Parser* p, lt_Token* start, lt_AstN
 	lt_Buffer operator_stack = lt_buffer_new(sizeof(lt_TokenType));
 
 #define PUSH_EXPR_FROM_OP(op) \
-	if (op == LT_TOKEN_NOT || op == LT_TOKEN_NEGATE)                      \
-	{																				\
-		lt_AstNode* unaryop = _lt_get_node_of_type(vm, current, p, LT_AST_NODE_UNARYOP);			\
-		unaryop->unary_op.type = op;											    \
-		lt_buffer_push(vm, &result, &unaryop);											\
-	}																				\
-	else																			\
-	{																				\
-		lt_AstNode* binaryop = _lt_get_node_of_type(vm, current, p, LT_AST_NODE_BINARYOP);		\
-		binaryop->binary_op.type = op;											    \
-		lt_buffer_push(vm, &result, &binaryop);											\
+	if (op == LT_TOKEN_NOT || op == LT_TOKEN_NEGATE)                                          \
+	{																				          \
+		lt_AstNode* unaryop = _lt_get_node_of_type(vm, current, p, LT_AST_NODE_UNARYOP);	  \
+		unaryop->unary_op.type = op;											              \
+		lt_buffer_push(vm, &result, &unaryop);											      \
+	}																				          \
+	else																			          \
+	{																				          \
+		lt_AstNode* binaryop = _lt_get_node_of_type(vm, current, p, LT_AST_NODE_BINARYOP);	  \
+		binaryop->binary_op.type = op;											              \
+		lt_buffer_push(vm, &result, &binaryop);											      \
 	}
 
 #define BREAK_ON_EXPR_BOUNDRY       \
@@ -1204,6 +1195,8 @@ lt_VM* lt_open(lt_AllocFn alloc, lt_FreeFn free, lt_ErrorFn error)
 {
 	lt_VM* vm = alloc(sizeof(lt_VM));
 	memset(vm, 0, sizeof(lt_VM));
+
+	vm->top = vm->stack;
 	
 	vm->alloc = alloc;
 	vm->free = free;
@@ -1395,17 +1388,17 @@ uint32_t lt_collect(lt_VM* vm)
 
 void lt_push(lt_VM* vm, lt_Value val)
 {
-	vm->stack[vm->top++] = val;
+	(*vm->top++ = (val));
 }
 
 lt_Value lt_pop(lt_VM* vm)
 {
-	return vm->stack[--vm->top];
+	return (*(--vm->top));
 }
 
 lt_Value lt_at(lt_VM* vm, uint32_t idx)
 {
-	return vm->stack[vm->current->start + idx];
+	return *(vm->current->start + idx);
 }
 
 void lt_close(lt_VM* vm, uint8_t count)
@@ -1444,7 +1437,7 @@ uint16_t lt_exec(lt_VM* vm, lt_Value callable, uint8_t argc)
 	else
 	{
 		vm->depth = 0;
-		vm->top = 0;
+		vm->top = vm->stack;
 		return 0;
 	}
 }
@@ -1464,8 +1457,6 @@ uint16_t _lt_exec(lt_VM* vm, lt_Value callable, uint8_t argc)
 	lt_Frame* frame = &vm->callstack[vm->depth++];
 	memset(frame, 0, sizeof(lt_Frame));
 	vm->current = frame;
-
-	uint16_t start = vm->top;
 
 	frame->callee = callee;
 	frame->start = vm->top - argc;
@@ -1506,35 +1497,31 @@ uint16_t _lt_exec(lt_VM* vm, lt_Value callable, uint8_t argc)
 	} break;
 	}
 
-	lt_Op current = *(lt_Op*)lt_buffer_at(frame->code, frame->pc++);
+	lt_Value retval;
+	lt_Value* local_start = vm->stack + argc;
+	lt_Op* ip = (lt_Op*)frame->code->data;
+	frame->ip = &ip;
 #undef NEXT
-#define NEXT { current = *(lt_Op*)lt_buffer_at(frame->code, frame->pc++); goto inst_loop; break; }
+#define NEXT { ip++; goto inst_loop; }
 
-#define PUSH(x) vm->stack[vm->top++] = (x)
-#define POP() vm->stack[--vm->top]
+#define TOP (*(vm->top - 1))
+#define PUSH(x) (*vm->top++ = (x))
+#define POP() (*(--vm->top))
 
 inst_loop:
-	switch (current.op)
+	switch (ip->op)
 	{
 	case LT_OP_NOP: NEXT;
-
-	case LT_OP_PUSH: {
-		for (int i = 0; i < current.arg; i++)
-		{
-			vm->stack[vm->top++] = LT_VALUE_NULL;
-		}
-	} NEXT;
-
-	case LT_OP_POP: vm->top -= current.arg; NEXT;
-	case LT_OP_DUP: PUSH(vm->stack[vm->top - 1]); NEXT;
-	case LT_OP_PUSHC: PUSH(*(lt_Value*)lt_buffer_at(frame->constants, current.arg)); NEXT;
+	case LT_OP_PUSH: for (int i = 0; i < ip->arg; ++i) PUSH(LT_VALUE_NULL); NEXT;
+	case LT_OP_DUP: PUSH(TOP); NEXT;
+	case LT_OP_PUSHC: PUSH(*(lt_Value*)lt_buffer_at(frame->constants, ip->arg)); NEXT;
 	case LT_OP_PUSHN: PUSH(LT_VALUE_NULL); NEXT;
 	case LT_OP_PUSHT: PUSH(LT_VALUE_TRUE); NEXT;
 	case LT_OP_PUSHF: PUSH(LT_VALUE_FALSE); NEXT;
 
 	case LT_OP_MAKET: {
 		lt_Value t = LT_VALUE_OBJECT(lt_allocate(vm, LT_OBJECT_TABLE));
-		for (uint32_t i = 0; i < (uint32_t)current.arg; ++i)
+		for (uint32_t i = 0; i < (uint32_t)ip->arg; ++i)
 		{
 			lt_Value value = POP();
 			lt_Value key = POP();
@@ -1545,7 +1532,7 @@ inst_loop:
 
 	case LT_OP_MAKEA: {
 		lt_Value a = LT_VALUE_OBJECT(lt_allocate(vm, LT_OBJECT_ARRAY));
-		for (uint32_t i = 0; i < (uint32_t)current.arg; ++i)
+		for (uint32_t i = 0; i < (uint32_t)ip->arg; ++i)
 		{
 			lt_Value value = POP();
 			lt_array_push(vm, a, value);
@@ -1557,115 +1544,56 @@ inst_loop:
 		lt_Value value = POP();
 		lt_Value key = POP();
 		lt_Value t = POP();
-		if (LT_IS_TABLE(t))
-		{
-			lt_table_set(vm, t, key, value);
-		}
-		else if (LT_IS_ARRAY(t))
-		{
-			*lt_array_at(t, (uint32_t)lt_get_number(key)) = value;
-		}
-		else {};
+		if (LT_IS_TABLE(t)) lt_table_set(vm, t, key, value);
+		else if (LT_IS_ARRAY(t)) *lt_array_at(t, (uint32_t)lt_get_number(key)) = value;
 	} NEXT;
 
 	case LT_OP_GETT: {
 		lt_Value key = POP();
 		lt_Value t = POP();
 
-		if (LT_IS_TABLE(t))
-		{
-			PUSH(lt_table_get(vm, t, key));
-		}
-		else if (LT_IS_ARRAY(t))
-		{
-			PUSH(*lt_array_at(t, (uint32_t)lt_get_number(key)));
-		}
-		else PUSH(LT_VALUE_NULL);
+		if      (LT_IS_TABLE(t)) PUSH(lt_table_get(vm, t, key));
+		else if (LT_IS_ARRAY(t)) PUSH(*lt_array_at(t, (uint32_t)lt_get_number(key)));
+		else                     PUSH(LT_VALUE_NULL);
 	} NEXT;
 
-	case LT_OP_GETG: {
-		lt_Value key = POP();
-		PUSH(lt_table_get(vm, vm->global, key));
-	} NEXT;
+	case LT_OP_GETG: PUSH(lt_table_get(vm, vm->global, POP())); NEXT;
 
-#define PASTE(x) x
+	case LT_OP_ADD: TOP = (lt_make_number(VALTONUM(POP()) + VALTONUM(TOP))); NEXT;
+	case LT_OP_SUB: TOP = (lt_make_number(VALTONUM(POP()) - VALTONUM(TOP))); NEXT;
+	case LT_OP_MUL: TOP = (lt_make_number(VALTONUM(POP()) * VALTONUM(TOP))); NEXT;
+	case LT_OP_DIV: TOP = (lt_make_number(VALTONUM(POP()) / VALTONUM(TOP))); NEXT;
 
-#define IMPL_ARITH(op){                                                       \
-		lt_Value right = POP();		                                          \
-		lt_Value left = POP();		                                          \
-		if (!LT_IS_NUMBER(right) || !LT_IS_NUMBER(left)) {}		              \
-		PUSH(lt_make_number(lt_get_number(left) PASTE(op) lt_get_number(right)));  \
-	} NEXT;
+	case LT_OP_EQ:  TOP = (lt_equals(POP(), TOP) ? LT_VALUE_TRUE : LT_VALUE_FALSE); NEXT;
+	case LT_OP_NEQ: TOP = (lt_equals(POP(), TOP) ? LT_VALUE_FALSE : LT_VALUE_TRUE); NEXT;
 
-	case LT_OP_ADD: IMPL_ARITH(+)
-	case LT_OP_SUB: IMPL_ARITH(-)
-	case LT_OP_MUL: IMPL_ARITH(*)
-	case LT_OP_DIV: IMPL_ARITH(/)
+	case LT_OP_GT:  TOP = (VALTONUM(POP()) >  VALTONUM(TOP) ? LT_VALUE_TRUE : LT_VALUE_FALSE); NEXT;
+	case LT_OP_GTE: TOP = (VALTONUM(POP()) >= VALTONUM(TOP) ? LT_VALUE_TRUE : LT_VALUE_FALSE); NEXT;
 
-	case LT_OP_EQ: {
-		lt_Value right = POP();
-		lt_Value left = POP();
-		PUSH(lt_equals(left, right) ? LT_VALUE_TRUE : LT_VALUE_FALSE);
-	} NEXT;
+	case LT_OP_NEG: TOP = (lt_make_number(VALTONUM(TOP) * -1.0)); NEXT;
 
-	case LT_OP_NEQ: {
-		lt_Value right = POP();
-		lt_Value left = POP();
-		PUSH(lt_equals(left, right) ? LT_VALUE_FALSE : LT_VALUE_TRUE);
-	} NEXT;
-
-	case LT_OP_GT: {
-		lt_Value right = POP();
-		lt_Value left = POP();
-		PUSH(lt_get_number(left) > lt_get_number(right) ? LT_VALUE_TRUE : LT_VALUE_FALSE);
-	} NEXT;
-
-	case LT_OP_GTE: {
-		lt_Value right = POP();
-		lt_Value left = POP();
-		PUSH(lt_get_number(left) >= lt_get_number(right) ? LT_VALUE_TRUE : LT_VALUE_FALSE);
-	} NEXT;
-
-	case LT_OP_NEG: {
-		lt_Value right = POP();
-		if (!LT_IS_NUMBER(right)) {}
-		PUSH(lt_make_number(lt_get_number(right) * -1.0));
-	} NEXT;
-
-	case LT_OP_AND: {
-		lt_Value right = POP();		                                          
-		lt_Value left = POP();
-		PUSH(LT_IS_TRUTHY(right) && LT_IS_TRUTHY(left) ? LT_VALUE_TRUE : LT_VALUE_FALSE);
-	} NEXT;
+	case LT_OP_AND:	PUSH(LT_IS_TRUTHY(POP()) && LT_IS_TRUTHY(POP()) ? LT_VALUE_TRUE : LT_VALUE_FALSE); NEXT;
 
 	case LT_OP_OR: {
-		lt_Value right = POP();		                                          
 		lt_Value left = POP();
-		if (LT_IS_TRUTHY(left)) PUSH(left);
+		lt_Value right = POP();		                                          
+		if      (LT_IS_TRUTHY(left))  PUSH(left);
 		else if (LT_IS_TRUTHY(right)) PUSH(right);
-		else PUSH(LT_VALUE_FALSE);
+		else                          PUSH(LT_VALUE_FALSE);
 	} NEXT;
 
-	case LT_OP_NOT: {
-		lt_Value right = POP();
-		PUSH(LT_IS_TRUTHY(right) ? LT_VALUE_FALSE : LT_VALUE_TRUE);
-	} NEXT;
+	case LT_OP_NOT: TOP = (LT_IS_TRUTHY(TOP) ? LT_VALUE_FALSE : LT_VALUE_TRUE); NEXT;
 
-	case LT_OP_LOAD: PUSH(vm->stack[frame->start + current.arg]); NEXT;
-	case LT_OP_STORE: vm->stack[frame->start + current.arg] = POP(); NEXT;
+	case LT_OP_LOAD: PUSH(local_start[ip->arg]); NEXT;
+	case LT_OP_STORE: local_start[ip->arg] = POP(); NEXT;
 
-	case LT_OP_LOADUP: {
-		PUSH(*(lt_Value*)lt_buffer_at(frame->upvals, current.arg));
-	} NEXT;
-
-	case LT_OP_STOREUP: {
-		*(lt_Value*)lt_buffer_at(frame->upvals, current.arg) = POP();
-	} NEXT;
+	case LT_OP_LOADUP: PUSH(*(lt_Value*)lt_buffer_at(frame->upvals, ip->arg)); NEXT;
+	case LT_OP_STOREUP: *(lt_Value*)lt_buffer_at(frame->upvals, ip->arg) = POP(); NEXT;
 
 	case LT_OP_CLOSE: {
 		lt_Object* closure = lt_allocate(vm, LT_OBJECT_CLOSURE);
 		closure->closure.captures = lt_buffer_new(sizeof(lt_Value));
-		for (int i = 0; i < current.arg; i++)
+		for (int i = 0; i < ip->arg; i++)
 		{
 			lt_buffer_push(vm, &closure->closure.captures, &POP());
 		}
@@ -1673,44 +1601,27 @@ inst_loop:
 		PUSH(LT_VALUE_OBJECT(closure));
 	} NEXT;
 
-	case LT_OP_CALL: {
-		lt_Value callee = POP();
-		_lt_exec(vm, callee, (uint8_t)current.arg);
-	} NEXT;
+	case LT_OP_CALL: _lt_exec(vm, POP(), (uint8_t)ip->arg); NEXT;
 
-	case LT_OP_JMP: frame->pc += current.arg; NEXT;
+	case LT_OP_JMP: ip += ip->arg; NEXT;
 	case LT_OP_JMPC: {
 		lt_Value cond = POP();
-		if (!LT_IS_TRUTHY(cond)) frame->pc += current.arg;
+		if (!LT_IS_TRUTHY(cond)) ip += ip->arg;
 	} NEXT;
-	case LT_OP_JMPN: {
-		lt_Value cond = POP();
-		if (cond == LT_VALUE_NULL) frame->pc += current.arg;
-	} NEXT;
+	case LT_OP_JMPN: if (POP() == LT_VALUE_NULL) ip += ip->arg; NEXT;
 
-	case LT_OP_RET: {
-		if (current.arg)
-		{
-			lt_Value rval = POP();
-			vm->top = frame->start;
-			--vm->depth;
-			vm->current = vm->depth > 0 ? &vm->callstack[vm->depth - 1] : 0;
-			PUSH(rval);
-			return 1;
-		}
-		else
-		{
-			vm->top = frame->start;
-			--vm->depth;
-			vm->current = vm->depth > 0 ? &vm->callstack[vm->depth - 1] : 0;
-			return 0;
-		}
-	} NEXT;
+	case LT_OP_RET:
+		if (ip->arg) retval = POP();
+		vm->top = frame->start;
+		--vm->depth;
+		vm->current = vm->depth > 0 ? &vm->callstack[vm->depth - 1] : 0;
+		if (ip->arg) PUSH(retval);
+		return ip->arg;
 
 	default: lt_runtime_error(vm, "VM encountered unknown opcode!");
 	}
 
-	return vm->top - start;
+	return vm->top - (frame->start + argc);
 }
 
 #define OP(op) { lt_Op op = { LT_OP_##op, 0 }; lt_buffer_push(vm, code_body, &op); if(debug) { lt_buffer_push(vm, debug, &node->loc); } }
@@ -1820,8 +1731,8 @@ static void _lt_compile_node(lt_VM* vm, lt_Parser* p, const char* name, lt_Buffe
 	} break;
 
 	case LT_AST_NODE_BINARYOP: {
-		_lt_compile_node(vm, p, name, debug, node->binary_op.left, scope, code_body, constants);
 		_lt_compile_node(vm, p, name, debug, node->binary_op.right, scope, code_body, constants);
+		_lt_compile_node(vm, p, name, debug, node->binary_op.left, scope, code_body, constants);
 		switch (node->binary_op.type)
 		{
 		case LT_TOKEN_PLUS: OP(ADD); break;

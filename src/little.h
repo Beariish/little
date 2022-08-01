@@ -335,13 +335,18 @@ typedef struct {
 	uint8_t markbit : 1;
 } lt_Object;
 
+typedef struct {
+	uint8_t op;
+	int8_t arg;
+} lt_Op;
+
 typedef struct lt_Frame {
 	lt_Object* callee;
 	lt_Buffer* code;
 	lt_Buffer* constants;
 	lt_Buffer* upvals;
-	uint32_t pc;
-	uint16_t start;
+	lt_Value* start;
+	lt_Op** ip;
 } lt_Frame;
 
 typedef void* (*lt_AllocFn)(size_t);
@@ -364,7 +369,7 @@ typedef struct {
 	lt_Buffer heap;
 	lt_Buffer keepalive;
 
-	uint16_t top;
+	lt_Value* top;
 	lt_Value stack[LT_STACK_SIZE];
 
 	uint16_t depth;
