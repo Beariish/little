@@ -174,7 +174,7 @@ void lt_runtime_error(lt_VM* vm, const char* message)
 
 	lt_Frame* topmost = &vm->callstack[vm->depth - 1];
 	lt_DebugInfo* info = _lt_get_debuginfo(topmost->callee);
-	lt_DebugLoc loc = _lt_get_location(info, topmost->ip - (lt_Op*)topmost->code->data);
+	lt_DebugLoc loc = _lt_get_location(info, topmost->ip - (lt_Op**)topmost->code->data);
 
 	const char* name = "<unknown>";
 	if (info) name = info->module_name;
@@ -184,7 +184,7 @@ void lt_runtime_error(lt_VM* vm, const char* message)
 	{
 		lt_Frame* frame = &vm->callstack[i];
 		lt_DebugInfo* info = _lt_get_debuginfo(frame->callee);
-		lt_DebugLoc loc = _lt_get_location(info, frame->ip - (lt_Op*)frame->code->data);
+		lt_DebugLoc loc = _lt_get_location(info, frame->ip - (lt_Op**)frame->code->data);
 
 		const char* name = "<unknown>";
 		if (info) name = info->module_name;
